@@ -1,0 +1,109 @@
+KIND FLORES E CESTAS — VERSÃO PARA GITHUB + VERCEL
+
+1. EXTRAIA O ZIP
+Envie o conteúdo da pasta para a raiz do repositório GitHub:
+package.json, package-lock.json, vercel.json, schema.sql, catalog.json,
+api/, lib/, public/, tests/ e este guia. Mantenha as pastas.
+Não envie node_modules, .env ou credenciais reais.
+
+2. IMPORTE NA VERCEL
+Add New > Project > importe seu repositório.
+Framework Preset: Other. Root Directory: raiz do repositório.
+Output Directory: public (já definido em vercel.json).
+Não configure comando para iniciar servidor. Não há server.mjs nem SQLite.
+O catálogo e as imagens funcionam antes de ativar pagamento.
+
+3. BANCO PERSISTENTE
+Crie/conecte um banco Neon PostgreSQL (pela integração disponível na Vercel
+ou diretamente no Neon). No editor SQL privado desse banco, execute schema.sql.
+Configure DATABASE_URL nas variáveis de ambiente da Vercel com a conexão Neon.
+Não publique essa conexão. Não exponha tabelas por uma API pública.
+Sem o banco/tabelas, a API retornará serviço indisponível.
+
+4. VARIÁVEIS DE AMBIENTE PRIVADAS
+DATABASE_URL: conexão PostgreSQL do Neon.
+BRAVOPAY_API_KEY: chave da SUA conta BravoPay.
+BRAVOPAY_WEBHOOK_SECRET: secret do webhook cadastrado na BravoPay.
+ORDER_TOKEN_SECRET: segredo aleatório de pelo menos 32 caracteres.
+PUBLIC_ORIGIN: endereço HTTPS exato da loja, sem barra final.
+CHECKOUT_ENABLED: false durante configuração; true somente após a revisão.
+BRAVOPAY_PRODUCT_ID: opcional, ID de produto real da sua conta.
+Não use prefixo NEXT_PUBLIC_ nessas variáveis.
+Para gerar ORDER_TOKEN_SECRET em um computador com Node instalado:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+Guarde esse valor somente nas variáveis privadas da hospedagem.
+Use banco e segredos separados para Preview e Production.
+Após alterar as variáveis, faça Redeploy.
+
+5. WEBHOOK
+No painel BravoPay, cadastre:
+https://SEU-DOMINIO/api/webhooks/bravopay
+Copie o secret desse cadastro para BRAVOPAY_WEBHOOK_SECRET na Vercel.
+O código valida HMAC-SHA256 do corpo exato, janela de 5 minutos, evento,
+ID da transação, referência do pedido, moeda, método e valor.
+Notificações repetidas não repetem a atualização. Reembolso não volta a pago.
+Notificações recebidas antes do vínculo da cobrança retornam erro temporário
+para permitir nova tentativa da gateway.
+
+6. CONFIRA ANTES DE ABRIR VENDAS
+Confirmar área atendida, estoque, composição, dias, horários e frete.
+A versão provisória apresenta entrega sem cobrança e pede confirmação
+prévia com a loja. Não libere CHECKOUT_ENABLED antes de definir essas regras.
+Telefone informado: (11) 2361-5884. Não foi inventado WhatsApp.
+Revisar textos legais e operação real; não há avaliações fictícias.
+Confirmar autorização para usar fotos de produtos do site de referência.
+
+7. PAGAMENTO
+O cliente recebe Pix copia e cola. Não há renderizador de QR Code nesta versão.
+A gateway é chamada apenas pelo servidor e usa a documentação fornecida.
+O valor é calculado pelo catálogo do servidor, não pelo total do navegador.
+A idempotência evita duplicar a mesma solicitação. Pedidos incertos com mais
+ de 23 horas não têm a criação repetida automaticamente (TTL externo de 24h).
+Nenhum endpoint de saque ou cartão foi implementado.
+Status só muda com confirmação autenticada da gateway.
+Consulta de status é limitada a uma consulta externa por pedido a cada 30s.
+Falha de rede não confirma pagamento.
+Não há painel administrativo; os pedidos estão no banco privado.
+
+8. CEP E IMAGENS
+O servidor consulta ViaCEP e preenche rua, bairro, cidade e estado. Número e complemento manuais.
+Se a consulta falhar, é possível preencher o endereço manualmente.
+Consulta de CEP não confirma cobertura de entrega.
+Fotos, estilos e scripts são locais. As imagens são servidas estaticamente
+pela Vercel com seus tipos de conteúdo, inclusive JPG.
+
+9. TESTES E LIMITES
+npm ci --ignore-scripts
+npm test
+Os testes usam gateway e banco simulados. Não criam cobranças reais.
+Para checar configuração após publicar: abra /api/health no domínio.
+configured=true indica variáveis presentes, não valida conta nem tabelas.
+Faça uma validação ponta a ponta controlada antes de abrir para clientes.
+Não foi feito deploy nem acesso à sua conta Vercel/BravoPay/Neon.
+
+10. ALERTA DO WINDOWS DEFENDER
+O pacote anterior foi identificado como Trojan:Win32/MalUri.A!cl.
+Esta revisão corrige arquitetura e funcionamento; não comprova falso positivo.
+Não foi possível executar análise Microsoft Defender neste ambiente.
+Não desative o antivírus nem crie exclusões. Se esta versão for bloqueada,
+mantenha o bloqueio e solicite análise à Microsoft Security Intelligence.
+Os arquivos estão legíveis, sem ofuscação ou compactação de scripts.
+Não há chaves reais ou arquivos executáveis binários neste pacote.
+
+11. RETENÇÃO E MANUTENÇÃO
+Definir retenção e acesso aos dados de pedidos conforme a operação e obrigações.
+A pasta do banco local foi removida: todos os pedidos passam ao Neon.
+Aplicar backup, acesso restrito e proteção de credenciais na conta do banco.
+Limpar periodicamente contadores expirados de kind_limits, pelo administrador:
+DELETE FROM kind_limits WHERE expires_at < now();
+Não apagar pedidos/events sem política de retenção e reconciliação definida.
+
+RECONSTRUÇÃO DO CHECKOUT E CEP
+checkout.html e cep.js foram reimplementados com campos rotulados e código legível.
+O navegador consulta /api/cep na própria loja. O servidor consulta um destino
+fixo ViaCEP, com formato de CEP validado, cache limitado e limite de consultas
+por instância. Nome, CPF, telefone e dados do pedido não são enviados ao ViaCEP.
+Alterações manuais durante a consulta são preservadas. A busca não depende do
+banco ou das credenciais de pagamento. O endereço permanece editável.
+Essa reconstrução não confirma nem descarta a detecção do Microsoft Defender.
+Se houver bloqueio, mantenha-o e encaminhe o arquivo para análise apropriada.
