@@ -94,7 +94,8 @@ body.cart-open{overflow:hidden}
 .checkout-totals .row{font-size:13px;margin:15px 0}
 .checkout-totals .checkout-grand-total{font-size:22px;border-top:1px solid #e7dde3;padding-top:20px;margin-top:20px}
 .checkout-totals #pix-discount{color:#22884a}
-@media(min-width:851px){#checkout+aside>.panel:first-child{position:sticky;top:18px}}
+/* O resumo acompanha o fluxo para não cobrir o painel Pix. */
+#checkout+aside>.panel:first-child{position:static}
 @media(max-width:540px){.order-extra{grid-template-columns:19px 60px 1fr}.order-extra img{width:60px;height:76px}.order-extra>b{grid-column:3}.checkout-choice{padding:14px 10px;gap:9px}.checkout-choice>b{font-size:12px}.checkout-choice strong{font-size:13px}.checkout-choice small{font-size:11px}}
 
 .card-unavailable{background:#f7f7f8;color:#8d8b91;border-color:#ededef;cursor:not-allowed}
