@@ -1,0 +1,176 @@
+KIND FLORES E CESTAS — VERSÃO PARA GITHUB + VERCEL
+
+1. EXTRAIA O ZIP
+Envie o conteúdo da pasta para a raiz do repositório GitHub:
+package.json, package-lock.json, vercel.json, schema.sql, catalog.json,
+api/, lib/, public/, tests/ e este guia. Mantenha as pastas.
+Não envie node_modules, .env ou credenciais reais.
+
+2. IMPORTE NA VERCEL
+Add New > Project > importe seu repositório.
+Framework Preset: Other. Root Directory: raiz do repositório.
+Output Directory: public (já definido em vercel.json).
+Não configure comando para iniciar servidor. Não há server.mjs nem SQLite.
+O catálogo e as imagens funcionam antes de ativar pagamento.
+
+3. BANCO PERSISTENTE
+Crie/conecte um banco Neon PostgreSQL (pela integração disponível na Vercel
+ou diretamente no Neon). No editor SQL privado desse banco, execute schema.sql.
+Configure DATABASE_URL nas variáveis de ambiente da Vercel com a conexão Neon.
+Não publique essa conexão. Não exponha tabelas por uma API pública.
+Sem o banco/tabelas, a API retornará serviço indisponível.
+
+4. VARIÁVEIS DE AMBIENTE PRIVADAS
+DATABASE_URL: conexão PostgreSQL do Neon.
+BRAVOPAY_API_KEY: chave da SUA conta BravoPay.
+BRAVOPAY_WEBHOOK_SECRET: secret do webhook cadastrado na BravoPay.
+ORDER_TOKEN_SECRET: segredo aleatório de pelo menos 32 caracteres.
+PUBLIC_ORIGIN: endereço HTTPS exato da loja, sem barra final.
+CHECKOUT_ENABLED: false durante configuração; true somente após a revisão.
+BRAVOPAY_PRODUCT_ID: opcional, ID de produto real da sua conta.
+Não use prefixo NEXT_PUBLIC_ nessas variáveis.
+Para gerar ORDER_TOKEN_SECRET em um computador com Node instalado:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+Guarde esse valor somente nas variáveis privadas da hospedagem.
+Use banco e segredos separados para Preview e Production.
+Após alterar as variáveis, faça Redeploy.
+
+5. WEBHOOK
+No painel BravoPay, cadastre:
+https://SEU-DOMINIO/api/webhooks/bravopay
+Copie o secret desse cadastro para BRAVOPAY_WEBHOOK_SECRET na Vercel.
+O código valida HMAC-SHA256 do corpo exato, janela de 5 minutos, evento,
+ID da transação, referência do pedido, moeda, método e valor.
+Notificações repetidas não repetem a atualização. Reembolso não volta a pago.
+Notificações recebidas antes do vínculo da cobrança retornam erro temporário
+para permitir nova tentativa da gateway.
+
+6. CONFIRA ANTES DE ABRIR VENDAS
+Confirmar área atendida, estoque, composição, dias, horários e frete.
+O checkout oferece frete grátis ou Frete Full por R$ 12,00 e pede confirmação
+prévia com a loja. Não libere CHECKOUT_ENABLED antes de confirmar essas regras.
+Telefone informado: (11) 2361-5884. Não foi inventado WhatsApp.
+Revisar textos legais e operação real; não há avaliações fictícias.
+Confirmar autorização para usar fotos de produtos do site de referência.
+
+7. PAGAMENTO
+O cliente recebe Pix copia e cola. Não há renderizador de QR Code nesta versão.
+A gateway é chamada apenas pelo servidor e usa a documentação fornecida.
+O valor é calculado pelo catálogo do servidor, não pelo total do navegador.
+A idempotência evita duplicar a mesma solicitação. Pedidos incertos com mais
+ de 23 horas não têm a criação repetida automaticamente (TTL externo de 24h).
+Nenhum endpoint de saque ou cartão foi implementado.
+Status só muda com confirmação autenticada da gateway.
+Consulta de status é limitada a uma consulta externa por pedido a cada 30s.
+Falha de rede não confirma pagamento.
+Não há painel administrativo; os pedidos estão no banco privado.
+
+8. CEP E IMAGENS
+O servidor consulta ViaCEP e preenche rua, bairro, cidade e estado. Número e complemento manuais.
+Se a consulta falhar, é possível preencher o endereço manualmente.
+Consulta de CEP não confirma cobertura de entrega.
+Fotos, estilos e scripts são locais. As imagens são servidas estaticamente
+pela Vercel com seus tipos de conteúdo, inclusive JPG.
+
+9. TESTES E LIMITES
+npm ci --ignore-scripts
+npm test
+Os testes usam gateway e banco simulados. Não criam cobranças reais.
+Para checar configuração após publicar: abra /api/health no domínio.
+configured=true indica variáveis presentes, não valida conta nem tabelas.
+Faça uma validação ponta a ponta controlada antes de abrir para clientes.
+Não foi feito deploy nem acesso à sua conta Vercel/BravoPay/Neon.
+
+10. ALERTA DO WINDOWS DEFENDER
+O pacote anterior foi identificado como Trojan:Win32/MalUri.A!cl.
+Esta revisão corrige arquitetura e funcionamento; não comprova falso positivo.
+Não foi possível executar análise Microsoft Defender neste ambiente.
+Não desative o antivírus nem crie exclusões. Se esta versão for bloqueada,
+mantenha o bloqueio e solicite análise à Microsoft Security Intelligence.
+Os arquivos estão legíveis, sem ofuscação ou compactação de scripts.
+Não há chaves reais ou arquivos executáveis binários neste pacote.
+
+11. RETENÇÃO E MANUTENÇÃO
+Definir retenção e acesso aos dados de pedidos conforme a operação e obrigações.
+A pasta do banco local foi removida: todos os pedidos passam ao Neon.
+Aplicar backup, acesso restrito e proteção de credenciais na conta do banco.
+Limpar periodicamente contadores expirados de kind_limits, pelo administrador:
+DELETE FROM kind_limits WHERE expires_at < now();
+Não apagar pedidos/events sem política de retenção e reconciliação definida.
+
+RECONSTRUÇÃO DO CHECKOUT E CEP
+checkout.html e cep.js foram reimplementados com campos rotulados e código legível.
+O navegador consulta /api/cep na própria loja. O servidor consulta um destino
+fixo ViaCEP, com formato de CEP validado, cache limitado e limite de consultas
+por instância. Nome, CPF, telefone e dados do pedido não são enviados ao ViaCEP.
+Alterações manuais durante a consulta são preservadas. A busca não depende do
+banco ou das credenciais de pagamento. O endereço permanece editável.
+Essa reconstrução não confirma nem descarta a detecção do Microsoft Defender.
+Se houver bloqueio, mantenha-o e encaminhe o arquivo para análise apropriada.
+
+VERSÃO 2.2 — CATÁLOGO COM DETALHES
+Os 48 produtos abrem uma janela antes de serem adicionados à sacola.
+Inclui foto, composição, observações, referências de marcas, adicionais
+opcionais e quantidade. O total é atualizado na tela e recalculado no servidor.
+Produtos iguais com configurações diferentes ficam em linhas separadas.
+Os adicionais são cobrados por unidade. Limites de seleção são validados
+no navegador e no servidor. Os dados de composição e preços dos adicionais
+vieram da referência indicada; confirme-os com a operação real da Kind antes
+de vender. O catálogo privado catalog.json e public/catalogo.json devem
+permanecer iguais ao atualizar preços, detalhes ou opções.
+O título de produtos com tamanho agora informa o tamanho de referência.
+As opções de tamanho disponíveis no catálogo de referência foram incluídas.
+Pedidos antigos permanecem no banco; a estrutura das tabelas não mudou.
+
+O link Sobre foi movido do topo para o rodapé em todas as páginas.
+O topo recebeu um banner original gerado com IA, armazenado localmente em
+public/imagens/banner-kind-flores.png, sem texto incorporado. O nome e a frase
+continuam em HTML. A frase do topo não inclui mais “em São Paulo”.
+O endereço institucional e as informações de entrega continuam preservados.
+
+Avaliações de clientes ainda dependem de depoimentos reais e fotos autorizadas.
+Não foram copiados depoimentos da outra loja nem criados clientes fictícios.
+
+VERSÃO 2.3 — CONFIRMAÇÃO E CARRINHO LATERAL
+O botão Adicionar ao carrinho abre os detalhes, sem adicionar imediatamente.
+O cliente escolhe opções e quantidade e clica Confirmar e ir ao carrinho.
+Só então o produto é salvo na sacola e o painel lateral é aberto.
+O painel mostra foto, produto, adicionais, quantidade, preços e total.
+Permite aumentar/diminuir quantidade, remover, continuar comprando e
+finalizar pedido no checkout. Carrinho vazio não permite finalizar.
+O link Sacola no topo do catálogo abre o mesmo painel.
+A página de checkout mantém os mesmos itens e totais do carrinho.
+
+VERSÃO 2.4 — OPÇÕES DO CHECKOUT
+Abaixo dos dados de entrega/comprador:
+- Modo confidencial (instrução salva no pedido, sem retirar dados da cobrança).
+- Frete grátis ou Frete Full por R$ 12,00, mediante disponibilidade da loja.
+- Adicionais por pedido: cartão Te Amo R$ 12,90 e balão Love R$ 19,90.
+- Desconto Pix de 5% sobre produtos e adicionais, sem desconto sobre o frete.
+- Cartão de crédito visível, desativado e marcado Indisponível.
+- Resumo com produtos, adicionais, frete, desconto e total.
+Os valores são calculados em centavos. O desconto é arredondado ao centavo
+mais próximo e subtraído da base; o total sempre corresponde à soma exibida.
+As opções são opcionais: os adicionais do checkout começam desmarcados.
+Os adicionais por produto, escolhidos na janela de detalhes, são separados
+dos adicionais por pedido: evite selecionar duas vezes o mesmo mimo se
+quiser apenas uma unidade. As opções escolhidas aparecem no resumo.
+A configuração comercial fica em public/checkout-model.js e é compartilhada
+pelo servidor; preços enviados pelo navegador não alteram os valores reais.
+A instrução de modo confidencial fica em payload.checkout.confidential no banco.
+O comerciante deve consultá-la ao montar o presente e organizar a entrega.
+A estrutura do banco continua igual. Custos, área e prioridade precisam
+ser aceitos pela operação antes de habilitar vendas com CHECKOUT_ENABLED.
+Cashback não foi anunciado: faltam regras e mecanismo de resgate.
+Avaliações aguardam depoimentos reais e fotos autorizadas.
+27 testes automatizados passaram; verificações de interação com DOM também
+cobriram a confirmação do produto, carrinho e escolhas do checkout.
+Nenhuma cobrança real foi criada nestas verificações.
+
+VERSÃO 2.5 — DIVISÓRIAS E CATEGORIAS
+A página inicial separa o catálogo por categorias com títulos destacados:
+Café da Manhã, Flores, Cestas, Chocolates, Romântico, Promoções, Pelúcias
+e Porta Retrato. Os filtros ficam em faixa horizontal, com a opção ativa
+em rosa. Todos exibe as oito seções; cada filtro exibe apenas sua seção.
+O layout mantém quatro colunas no computador e duas no celular.
+Detalhes, adicionais, confirmação e carrinho lateral foram preservados.
